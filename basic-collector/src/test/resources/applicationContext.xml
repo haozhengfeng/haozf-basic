@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans.xsd 
+		http://www.springframework.org/schema/tx 
+		http://www.springframework.org/schema/tx/spring-tx.xsd 
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop
+		http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+	<context:annotation-config />
+	<context:component-scan base-package="org.haozf net.zhxm" />
+
+	<!-- 加载*.properties File -->
+	<bean id="dbConfPostProcessor" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:jdbc.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">
+		<property name="slowSqlMillis" value="3000" />
+		<property name="logSlowSql" value="true" />
+	</bean>
+	
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="root" />
+		<property name="password" value="" />
+		<property name="initialSize" value="1" />
+		<property name="minIdle" value="1" />
+		<property name="maxActive" value="100" />
+		<property name="maxWait" value="1000" />
+		<!-- 以下通用 -->
+		<property name="minEvictableIdleTimeMillis" value="300000"></property>
+		<property name="timeBetweenEvictionRunsMillis" value="60000"></property>
+		<property name="removeAbandoned" value="true"></property>
+		<property name="logAbandoned" value="true" />
+		<property name="removeAbandonedTimeout" value="1800"></property>
+		<property name="testWhileIdle" value="true"></property>
+		<property name="validationQuery" value="select 1"></property>
+		<property name="proxyFilters">
+			<list>
+				<ref bean="stat-filter" />
+			</list>
+		</property>
+	</bean>
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="packagesToScan">
+			<value>org.haozf.basic.*.model</value>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+				<prop key="hibernate.format_sql">false</prop>
+			</props>
+		</property>
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory"></property>
+	</bean>
+
+	<aop:config>
+		<!-- 切面事务操作-->
+		<aop:pointcut id="servicePointcut" expression="execution(* org.haozf.basic.dao.*.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="servicePointcut" />
+	</aop:config>
+	
+	<!-- 基本事务定义,使用transactionManager作事务管理,默认find*方法的事务为readonly -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<!-- 指定哪些方法需要加入事务，可以使用通配符来只加入需要的方法 -->
+			<tx:method name="save*" propagation="REQUIRED" isolation="READ_UNCOMMITTED" timeout="36000" rollback-for="Exception" />
+			<tx:method name="add*" propagation="REQUIRED" isolation="READ_UNCOMMITTED" timeout="36000" rollback-for="Exception" />
+			<tx:method name="update*" propagation="REQUIRED" isolation="READ_UNCOMMITTED" timeout="36000" rollback-for="Exception" />
+			<tx:method name="delete*" propagation="REQUIRED" isolation="READ_UNCOMMITTED" timeout="36000" rollback-for="Exception" />
+			<tx:method name="create*" read-only="true" isolation="READ_UNCOMMITTED" timeout="36000" />
+		</tx:attributes>
+	</tx:advice>
+	
+	<!-- 配置JdbcTemplate -->
+	<bean id="jdbc" class="org.springframework.jdbc.core.JdbcTemplate">
+		<constructor-arg ref="dataSource" />
+	</bean>
+</beans>

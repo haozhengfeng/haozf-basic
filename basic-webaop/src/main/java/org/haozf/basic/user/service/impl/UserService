@@ -1,0 +1,64 @@
+package org.haozf.basic.user.service.impl;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.haozf.basic.model.Pager;
+import org.haozf.basic.user.dao.IUserDao;
+import org.haozf.basic.user.model.User;
+import org.haozf.basic.user.service.IUserService;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.googlecode.ehcache.annotations.TriggersRemove;
+import com.googlecode.ehcache.annotations.When;
+
+@Service("userService")
+@Transactional
+public class UserService implements IUserService<User> {
+
+	@Resource
+	private IUserDao userDao;
+
+	@Override
+	@Cacheable(value = "usersCache")
+	public User getUser(int id) {
+		userDao.list();
+		return userDao.load(id);
+	}
+
+	@Override
+	@TriggersRemove(cacheName = "userCache", when = When.AFTER_METHOD_INVOCATION, removeAll = true)
+	public int addUser(User user) {
+		User u = userDao.add(user);
+		return u.getId();
+	}
+
+	@Override
+	@TriggersRemove(cacheName = "userCache", when = When.AFTER_METHOD_INVOCATION, removeAll = true)
+	public void deleteUser(int id) {
+		User user = new User();
+		user.setId(id);
+		userDao.delete(user);
+	}
+	
+	@Override
+	public User updateUser(User t) {
+		userDao.update(t);
+		return t;
+	}
+
+	@Override
+	@Cacheable(value = "usersCache")
+	public List<User> list() {
+		return userDao.list();
+	}
+
+	@Override
+	public Pager<User> find() {
+		return userDao.find();
+	}
+
+}
